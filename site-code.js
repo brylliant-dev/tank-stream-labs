@@ -124,3 +124,525 @@ document.addEventListener("DOMContentLoaded", () => {
   io.observe(container);
 });
 /* End of Code for Stat Counter */
+
+/* =========================================================
+   START: Location Slider (Swiper CDN)
+   Purpose: Loads Swiper library required by the Location Slider.
+   Note: Keep this in the <head> or before any Swiper init code runs.
+========================================================= */
+src="https://cdn.jsdelivr.net/npm/swiper@12/swiper-bundle.min.js"
+/* =========================================================
+   END: Location Slider (Swiper CDN)
+========================================================= */
+
+
+/* =========================================================
+   START: FlexLocation – Swipe on CMS Titles + Sync Background Slider
+   Purpose:
+   - Initializes the background Swiper (fade effect, optional loop, pagination)
+   - Keeps title slides in sync with the active background slide
+   - Enables swipe gestures on the CMS dynamic wrapper (w-dyn-items) on touch devices
+   - Allows clicking a title to jump to the corresponding background slide
+========================================================= */
+(function ($) {
+  "use strict";
+
+  var Webflow = window.Webflow || [];
+  Webflow.push(function () {
+    if (typeof window.Swiper === "undefined") {
+      console.error("[FlexLocation] Swiper is not loaded.");
+      return;
+    }
+
+    $(".flex-location_slider-wrapper").each(function () {
+      const $wrap = $(this);
+
+      // Guard against double init
+      if ($wrap.attr("data-flexlocation-init") === "true") return;
+      $wrap.attr("data-flexlocation-init", "true");
+
+      const bgEl = $wrap.find(".swiper.is-slider-bg")[0];
+      if (!bgEl) return;
+
+      const $titleSlides = $wrap.find(".swiper-slide.is-slider-titles");
+      const bgSlidesCount = $wrap.find(".swiper-slide.is-slider-bg").length;
+      if (bgSlidesCount < 1) return;
+
+      const shouldLoop = bgSlidesCount > 1;
+
+      // Pagination (outside swiper is OK)
+      const paginationEl = $wrap.find(".slider-bg_component .swiper-pagination")[0] || null;
+
+      // Init BG swiper
+      const bgSwiper = new Swiper(bgEl, {
+        slidesPerView: 1,
+        speed: 400,
+        effect: "fade",
+        fadeEffect: { crossFade: true },
+        loop: shouldLoop,
+
+        // Swipe on mobile only
+        allowTouchMove: false,
+        breakpoints: {
+          0: { allowTouchMove: true },
+          768: { allowTouchMove: false }
+        },
+
+        ...(paginationEl ? { pagination: { el: paginationEl } } : {})
+      });
+
+      function setActiveTitle(realIndex) {
+        if (!$titleSlides.length) return;
+        $titleSlides.removeClass("is-active");
+        $titleSlides.eq(realIndex).addClass("is-active");
+      }
+
+      setActiveTitle(bgSwiper.realIndex || 0);
+      bgSwiper.on("slideChange", function () {
+        setActiveTitle(bgSwiper.realIndex);
+      });
+
+      // Keep interactive elements clickable
+      $wrap.on("click", "a, button, [role='button']", function (e) {
+        e.stopPropagation();
+      });
+
+      // Tap title slide to jump
+      $wrap.on("click", ".swiper-slide.is-slider-titles", function (e) {
+        if ($(e.target).closest("a, button, [role='button']").length) return;
+
+        const idx = $(this).index();
+        if (shouldLoop && typeof bgSwiper.slideToLoop === "function") bgSwiper.slideToLoop(idx);
+        else bgSwiper.slideTo(idx);
+      });
+
+      // Bind swipe gesture to the CMS moving wrapper (w-dyn-items)
+      (function bindDynTitlesSwipe() {
+        const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+        if (!isTouch) return;
+
+        const $swipeSurface = $wrap
+          .find(".swiper-wrapper.is-slider-titles.w-dyn-items")
+          .first();
+
+        const $fallbackSurface = $wrap.find(".swiper.is-slider-titles").first();
+
+        const $surface = $swipeSurface.length ? $swipeSurface : $fallbackSurface;
+        if (!$surface.length) return;
+
+        // Allow horizontal intent
+        $surface.css("touch-action", "pan-y");
+
+        let startX = 0, startY = 0;
+        let tracking = false;
+
+        const THRESH_X = 30;
+        const CANCEL_Y = 60;
+
+        $surface.on("touchstart", function (e) {
+          if ($(e.target).closest("a, button, [role='button']").length) return;
+
+          const t = e.originalEvent.touches && e.originalEvent.touches[0];
+          if (!t) return;
+
+          startX = t.clientX;
+          startY = t.clientY;
+          tracking = true;
+        });
+
+        $surface.on("touchmove", function (e) {
+          if (!tracking) return;
+
+          const t = e.originalEvent.touches && e.originalEvent.touches[0];
+          if (!t) return;
+
+          const dx = t.clientX - startX;
+          const dy = t.clientY - startY;
+
+          if (Math.abs(dy) > CANCEL_Y && Math.abs(dy) > Math.abs(dx)) {
+            tracking = false;
+            return;
+          }
+
+          if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
+            e.preventDefault();
+          }
+        });
+
+        $surface.on("touchend", function (e) {
+          if (!tracking) return;
+          tracking = false;
+
+          const t = e.originalEvent.changedTouches && e.originalEvent.changedTouches[0];
+          if (!t) return;
+
+          const dx = t.clientX - startX;
+          const dy = t.clientY - startY;
+
+          if (Math.abs(dx) < THRESH_X || Math.abs(dx) < Math.abs(dy)) return;
+
+          if (!bgSwiper.allowTouchMove) return;
+
+          if (dx < 0) bgSwiper.slideNext();
+          else bgSwiper.slidePrev();
+        });
+      })();
+
+      // Optional arrows
+      const nextEl = $wrap.find(".swiper-next");
+      const prevEl = $wrap.find(".swiper-prev");
+
+      if (nextEl.length) {
+        nextEl.on("click", function (e) {
+          e.preventDefault();
+          bgSwiper.slideNext();
+        });
+      }
+      if (prevEl.length) {
+        prevEl.on("click", function (e) {
+          e.preventDefault();
+          bgSwiper.slidePrev();
+        });
+      }
+    });
+  });
+})(window.jQuery);
+/* =========================================================
+   END: FlexLocation – Swipe on CMS Titles + Sync Background Slider
+========================================================= */
+
+
+/* =========================================================
+   START: Location Hover – Marquee Auto-Scroll (Pause on Hover)
+   Purpose:
+   - Animates a horizontal marquee (track) continuously
+   - Pauses the marquee when the user hovers the wrapper
+   - Assumes content is duplicated once (scrollWidth / 2 loop)
+========================================================= */
+document.addEventListener("DOMContentLoaded", () => {
+  const wrap = document.querySelector('[data-marquee="wrap"]');
+  const track = document.querySelector('[data-marquee="track"]');
+  if (!wrap || !track) return;
+
+  let x = 0;
+  let pxPerSec = 30;
+  let targetSpeed = pxPerSec;
+  let currentSpeed = pxPerSec;
+
+  const ease = 0.08;
+
+  const getLoopWidth = () => track.scrollWidth / 2;
+
+  wrap.addEventListener("mouseenter", () => { targetSpeed = 0; });
+  wrap.addEventListener("mouseleave", () => { targetSpeed = pxPerSec; });
+
+  let last = performance.now();
+  function raf(now){
+    const dt = (now - last) / 1000;
+    last = now;
+
+    currentSpeed += (targetSpeed - currentSpeed) * ease;
+
+    x -= currentSpeed * dt;
+
+    const loopW = getLoopWidth();
+    if (loopW > 0) {
+      x = ((x % loopW) + loopW) % loopW;
+      x = x - loopW;
+    }
+
+    track.style.transform = `translate3d(${x}px,0,0)`;
+    requestAnimationFrame(raf);
+  }
+  requestAnimationFrame(raf);
+});
+/* =========================================================
+   END: Location Hover – Marquee Auto-Scroll (Pause on Hover)
+========================================================= */
+
+
+/* =========================================================
+   START: Testimonial Slider (Swiper Init)
+   Purpose:
+   - Initializes Swiper for each testimonial collection instance
+   - Enables autoplay, pagination, and navigation arrows
+   - Removes ARIA roles from swiper wrappers/slides to avoid Webflow conflicts
+========================================================= */
+$(document).ready(function() {
+  $(".swiper-wrapper").removeAttr("role");
+  $(".swiper-slide").removeAttr("role");
+
+  $(".testimonial_collection").each(function () {
+    const swiper = new Swiper($(this).find(".swiper")[0], {
+      direction: "horizontal",
+      loop: true,
+      slidesPerView: "auto",
+      simulateTouch: true,
+      grabCursor: true,
+      allowTouchMove: true,
+      spaceBetween: 20,
+      autoplay: {
+        delay: 15000,
+        disableOnInteraction: false,
+      },
+      pagination: {
+        el: ".swiper-pagination",
+        clickable: true,
+      },
+      navigation: {
+        nextEl: ".next",
+        prevEl: ".prev",
+      },
+    });
+  });
+});
+/* =========================================================
+   END: Testimonial Slider (Swiper Init)
+========================================================= */
+
+
+/* =========================================================
+   START: Nav Scroll Lock (Webflow Nav Open = Disable Body Scroll)
+   Purpose:
+   - Disables page scroll when Webflow nav menu is open
+   - Restores scroll position when nav closes
+   - Optionally stops/starts Lenis (if window.lenis exists)
+========================================================= */
+(() => {
+  let scrollY = 0;
+  let isLocked = false;
+
+  const getLenis = () => window.lenis || null;
+
+  function lockScroll() {
+    if (isLocked) return;
+    isLocked = true;
+
+    scrollY = window.scrollY || window.pageYOffset || 0;
+
+    const body = document.body;
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+    body.style.overflow = "hidden";
+
+    const lenis = getLenis();
+    if (lenis && typeof lenis.stop === "function") lenis.stop();
+  }
+
+  function unlockScroll() {
+    if (!isLocked) return;
+    isLocked = false;
+
+    const body = document.body;
+    body.style.position = "";
+    body.style.top = "";
+    body.style.left = "";
+    body.style.right = "";
+    body.style.width = "";
+    body.style.overflow = "";
+
+    window.scrollTo(0, scrollY);
+
+    const lenis = getLenis();
+    if (lenis && typeof lenis.start === "function") lenis.start();
+  }
+
+  function isNavOpen(navEl) {
+    const btn = navEl.querySelector(".w-nav-button");
+    const menu = navEl.querySelector(".w-nav-menu");
+    const btnOpen = !!btn && btn.classList.contains("w--open");
+    const menuOpen = !!menu && menu.classList.contains("w--open");
+    return btnOpen || menuOpen;
+  }
+
+  function sync(navEl) {
+    isNavOpen(navEl) ? lockScroll() : unlockScroll();
+  }
+
+  function observeOpenState(navEl) {
+    const btn = navEl.querySelector(".w-nav-button");
+    const menu = navEl.querySelector(".w-nav-menu");
+    if (!btn && !menu) return;
+
+    const mo = new MutationObserver(() => sync(navEl));
+    if (btn) mo.observe(btn, { attributes: true, attributeFilter: ["class"] });
+    if (menu) mo.observe(menu, { attributes: true, attributeFilter: ["class"] });
+
+    sync(navEl);
+
+    navEl.addEventListener("click", (e) => {
+      if (e.target.closest(".w-nav-menu a")) setTimeout(() => sync(navEl), 0);
+    });
+
+    document.addEventListener("click", () => setTimeout(() => sync(navEl), 0));
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") setTimeout(() => sync(navEl), 0);
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".w-nav").forEach(observeOpenState);
+  });
+})();
+/* =========================================================
+   END: Nav Scroll Lock (Webflow Nav Open = Disable Body Scroll)
+========================================================= */
+
+
+/* =========================================================
+   START: Manual Scroll Toggle via [data-scroll]
+   Purpose:
+   - Adds/removes "no-scroll" class on <html> and <body>
+   - Use buttons/links with data-scroll="disable" or data-scroll="enable"
+========================================================= */
+const lockScroll = () => {
+  document.documentElement.classList.add("no-scroll");
+  document.body.classList.add("no-scroll");
+};
+
+const unlockScroll = () => {
+  document.documentElement.classList.remove("no-scroll");
+  document.body.classList.remove("no-scroll");
+};
+
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-scroll]");
+  if (!btn) return;
+
+  const action = btn.getAttribute("data-scroll");
+  if (action === "disable") lockScroll();
+  if (action === "enable") unlockScroll();
+});
+/* =========================================================
+   END: Manual Scroll Toggle via [data-scroll]
+========================================================= */
+
+
+/* =========================================================
+   START: Nav Location Hover (Desktop 992px+ Only)
+   Purpose:
+   - Adds hover animation for nav location items on desktop
+   - Smoothly fades/slides the icon in on hover, fades out on leave
+   - Automatically binds/unbinds when crossing the 992px breakpoint
+========================================================= */
+(function ($) {
+  "use strict";
+
+  const ITEM = ".nav-location_default_nest-item";
+  const ICON = ".location_popup_link-icon";
+  const DURATION = 500;
+  const FADE_OUT_DELAY = 160;
+  const MQ_DESKTOP = window.matchMedia("(min-width: 992px)");
+  const NS = ".navLocHover";
+
+  const resetState = () => {
+    $(ITEM).each(function () {
+      const $item = $(this);
+      const t = $item.data("imgOutTimer");
+      if (t) clearTimeout(t);
+
+      $item.removeClass("is-img-open").removeData("imgOutTimer");
+      $item.find(ICON).stop(true, true).css({
+        opacity: 0,
+        transform: "translateX(0em)",
+        transition: "none",
+      });
+    });
+  };
+
+  const bind = () => {
+    resetState();
+
+    $(document)
+      .off("mouseenter" + NS, ITEM)
+      .off("mouseleave" + NS, ITEM);
+
+    $(document).on("mouseenter" + NS, ITEM, function () {
+      const $item = $(this);
+      const $icon = $item.find(ICON);
+
+      const t = $item.data("imgOutTimer");
+      if (t) clearTimeout(t);
+
+      $item.addClass("is-img-open");
+
+      $icon.stop(true, true).css({
+        opacity: 0,
+        transform: "translateX(-1em)",
+        transition: "none",
+      });
+
+      if ($icon[0]) void $icon[0].offsetHeight;
+
+      requestAnimationFrame(() => {
+        $icon.css({
+          transition: `transform ${DURATION}ms ease`,
+          transform: "translateX(0em)",
+        });
+      });
+
+      $icon.animate({ opacity: 1 }, { duration: DURATION, queue: false });
+    });
+
+    $(document).on("mouseleave" + NS, ITEM, function () {
+      const $item = $(this);
+      const $icon = $item.find(ICON);
+
+      $icon.stop(true, true);
+      $icon.css({
+        transition: `transform ${DURATION}ms ease`,
+        transform: "translateX(0em)",
+      });
+      $icon.animate({ opacity: 0 }, { duration: DURATION, queue: false });
+
+      const timer = setTimeout(() => {
+        $item.removeClass("is-img-open");
+        $item.removeData("imgOutTimer");
+      }, FADE_OUT_DELAY);
+
+      $item.data("imgOutTimer", timer);
+    });
+  };
+
+  const unbind = () => {
+    $(document).off(NS);
+    resetState();
+  };
+
+  const apply = () => {
+    if (MQ_DESKTOP.matches) bind();
+    else unbind();
+  };
+
+  $(function () {
+    apply();
+
+    if (MQ_DESKTOP.addEventListener) MQ_DESKTOP.addEventListener("change", apply);
+    else MQ_DESKTOP.addListener(apply);
+  });
+})(jQuery);
+/* =========================================================
+   END: Nav Location Hover (Desktop 992px+ Only)
+========================================================= */
+
+
+/* =========================================================
+   START: Hide Banner Wrapper if CMS List is Empty
+   Purpose:
+   - If the banner collection list is missing, hides the banner wrapper
+   - Useful when a CMS Collection List may not render on some pages
+========================================================= */
+$(document).ready(function() {
+  var collectionList = $(".banner-collection_list");
+  var sectionToHide = $(".banner-wrapper");
+
+  if (collectionList.length === 0) {
+    sectionToHide.css("display", "none");
+  }
+});
+/* =========================================================
+   END: Hide Banner Wrapper if CMS List is Empty
+========================================================= */
