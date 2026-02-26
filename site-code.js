@@ -125,16 +125,6 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 /* End of Code for Stat Counter */
 
-/* =========================================================
-   START: Location Slider (Swiper CDN)
-   Purpose: Loads Swiper library required by the Location Slider.
-   Note: Keep this in the <head> or before any Swiper init code runs.
-========================================================= */
-src="https://cdn.jsdelivr.net/npm/swiper@12/swiper-bundle.min.js"
-/* =========================================================
-   END: Location Slider (Swiper CDN)
-========================================================= */
-
 
 /* =========================================================
    START: FlexLocation – Swipe on CMS Titles + Sync Background Slider
