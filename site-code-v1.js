@@ -1,6 +1,8 @@
 /* Start of Code for Stat Counter */
 document.addEventListener("DOMContentLoaded", () => {
-  const items = Array.from(document.querySelectorAll(".stats_number-item .heading-48, .stats_number-item .heading-64"));
+  const items = Array.from(
+    document.querySelectorAll(".stats_number-item .heading-48, .stats_number-item .heading-64")
+  );
   if (!items.length) return;
 
   const DURATION_MS = 1400;
@@ -19,6 +21,34 @@ document.addEventListener("DOMContentLoaded", () => {
     return useCommas ? rounded.toLocaleString() : String(rounded);
   };
 
+  // Extract prefix (e.g. "#"), numeric part, suffix (e.g. "+")
+  const splitAffixes = (raw) => {
+    const cleaned = (raw || "").replace(/\s+/g, " ").trim();
+
+    // Capture: [anything before first digit] [digits/commas/spaces] [anything after last digit]
+    const m = cleaned.match(/^([^\d]*)([\d,\s]+)([^\d]*)$/);
+
+    if (m) {
+      const prefix = (m[1] || "").trim();            // e.g. "#"
+      const numPart = (m[2] || "").trim();           // e.g. "1" or "12,345"
+      const suffix = (m[3] || "").trim();            // e.g. "+"
+      const useCommas = /,/.test(numPart);
+
+      const targetStr = numPart.replace(/[^\d]/g, "");
+      const target = targetStr ? parseInt(targetStr, 10) : 0;
+
+      return { prefix, suffix, useCommas, target };
+    }
+
+    // Fallback (previous behavior)
+    const hasPlus = /\+/.test(cleaned);
+    const useCommas = /,/.test(cleaned);
+    const targetStr = cleaned.replace(/[^\d]/g, "");
+    const target = targetStr ? parseInt(targetStr, 10) : 0;
+
+    return { prefix: "", suffix: hasPlus ? "+" : "", useCommas, target };
+  };
+
   // --- 1) Parse originals + prepare DOM to prevent width shifts ---
   const parsed = items
     .map((el) => {
@@ -26,23 +56,20 @@ document.addEventListener("DOMContentLoaded", () => {
       const captionHTML = caption ? caption.outerHTML : "";
 
       const raw = getNumberTextOnly(el);
-      const hasPlus = /\+/.test(raw);
-      const useCommas = /,/.test(raw);
+      const { prefix, suffix, useCommas, target } = splitAffixes(raw);
 
-      const targetStr = raw.replace(/[^\d]/g, "");
-      const target = targetStr ? parseInt(targetStr, 10) : 0;
       if (!target) return null;
 
-      // Final text we want to reserve space for
-      const finalText = `${formatNumber(target, useCommas)}${hasPlus ? "+" : ""}`;
+      // Reserve space for final text, including prefix/suffix (handles "#1", "250+", etc.)
+      const finalText = `${prefix}${formatNumber(target, useCommas)}${suffix}`;
 
-      return { el, captionHTML, target, hasPlus, useCommas, finalText };
+      return { el, captionHTML, target, prefix, suffix, useCommas, finalText };
     })
     .filter(Boolean);
 
   if (!parsed.length) return;
 
-  // Create a hidden measurer that matches the <p>'s typography
+  // Hidden measurer matching typography
   const measurer = document.createElement("span");
   measurer.setAttribute("aria-hidden", "true");
   measurer.style.position = "absolute";
@@ -51,12 +78,10 @@ document.addEventListener("DOMContentLoaded", () => {
   measurer.style.pointerEvents = "none";
   document.body.appendChild(measurer);
 
-  // Reserve fixed width for the number part and rebuild structure:
-  // <span class="stat-num">...</span><span class="stat-caption">...</span>
-  parsed.forEach(({ el, captionHTML, finalText }) => {
+  // Reserve fixed width for the number part and rebuild structure
+  parsed.forEach(({ el, captionHTML, finalText, prefix, suffix }) => {
     const cs = window.getComputedStyle(el);
 
-    // Ensure measurer uses same font styles as the <p>
     measurer.style.fontFamily = cs.fontFamily;
     measurer.style.fontSize = cs.fontSize;
     measurer.style.fontWeight = cs.fontWeight;
@@ -66,21 +91,24 @@ document.addEventListener("DOMContentLoaded", () => {
     measurer.textContent = finalText;
     const finalWidth = Math.ceil(measurer.getBoundingClientRect().width);
 
-    // Rebuild content with fixed-width number wrapper
+    // Keep captionHTML as-is, but never risk HTML injection for the number text
     el.innerHTML = `
       <span class="stat-num" style="
         display:inline-block;
         width:${finalWidth}px;
         white-space:nowrap;
         text-align:left;
-      ">0</span>${captionHTML}
+      "></span>${captionHTML}
     `;
+
+    const numEl = el.querySelector(".stat-num");
+    if (numEl) numEl.textContent = `${prefix}${formatNumber(0, false)}${suffix}`; // e.g. "#0"
   });
 
   measurer.remove();
 
   // --- 2) Animate numbers without changing widths ---
-  const animate = ({ el, target, hasPlus, useCommas }, delay) => {
+  const animate = ({ el, target, prefix, suffix, useCommas }, delay) => {
     const numEl = el.querySelector(".stat-num");
     if (!numEl) return;
 
@@ -93,11 +121,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const eased = 1 - Math.pow(1 - t, 3);
 
       const current = target * eased;
-      const text = `${formatNumber(current, useCommas)}${hasPlus ? "+" : ""}`;
-      numEl.textContent = text;
+      numEl.textContent = `${prefix}${formatNumber(current, useCommas)}${suffix}`;
 
       if (t < 1) requestAnimationFrame(tick);
-      else numEl.textContent = `${formatNumber(target, useCommas)}${hasPlus ? "+" : ""}`;
+      else numEl.textContent = `${prefix}${formatNumber(target, useCommas)}${suffix}`;
     };
 
     setTimeout(() => requestAnimationFrame(tick), delay);
@@ -314,36 +341,88 @@ document.addEventListener("DOMContentLoaded", () => {
   const track = document.querySelector('[data-marquee="track"]');
   if (!wrap || !track) return;
 
+  wrap.style.overflow = "hidden";
+
+  // Expect: track contains ONE group as first child
+  const group = track.firstElementChild;
+  if (!group) return;
+
+  // Clone group once (if not already)
+  if (track.children.length < 2) {
+    const clone = group.cloneNode(true);
+    clone.setAttribute("aria-hidden", "true");
+    track.appendChild(clone);
+  }
+
+  track.style.display = "flex";
+  track.style.flexWrap = "nowrap";
+  track.style.willChange = "transform";
+
   let x = 0;
-  let pxPerSec = 30;
-  let targetSpeed = pxPerSec;
-  let currentSpeed = pxPerSec;
 
-  const ease = 0.08;
+  const BASE_SPEED = 30; // px/sec
+  let currentSpeed = BASE_SPEED;
 
-  const getLoopWidth = () => track.scrollWidth / 2;
+  // Smooth ramp settings
+  const STOP_DURATION = 0.6;  // seconds to slow to 0
+  const START_DURATION = 0.8; // seconds to ramp back to BASE_SPEED
 
-  wrap.addEventListener("mouseenter", () => { targetSpeed = 0; });
-  wrap.addEventListener("mouseleave", () => { targetSpeed = pxPerSec; });
+  let speedFrom = BASE_SPEED;
+  let speedTo = BASE_SPEED;
+  let rampStart = performance.now();
+  let rampDuration = 0;
+
+  let loopW = 0;
+
+  const clamp01 = (t) => Math.min(1, Math.max(0, t));
+  const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+  const lerp = (a, b, t) => a + (b - a) * t;
+
+  const startRamp = (toSpeed, durationSec) => {
+    speedFrom = currentSpeed;
+    speedTo = toSpeed;
+    rampStart = performance.now();
+    rampDuration = Math.max(0.001, durationSec * 1000);
+  };
+
+  const measure = () => {
+    loopW = group.getBoundingClientRect().width;
+
+    if (loopW > 0) {
+      x = x % loopW;
+      if (x > 0) x -= loopW; // keep x in [-loopW, 0]
+    }
+  };
+
+  // Smooth pause/resume
+  wrap.addEventListener("mouseenter", () => startRamp(0, STOP_DURATION));
+  wrap.addEventListener("mouseleave", () => startRamp(BASE_SPEED, START_DURATION));
+
+  window.addEventListener("resize", measure);
+  const ro = new ResizeObserver(measure);
+  ro.observe(group);
+  window.addEventListener("load", measure);
+
+  measure();
 
   let last = performance.now();
-  function raf(now){
+  function raf(now) {
     const dt = (now - last) / 1000;
     last = now;
 
-    currentSpeed += (targetSpeed - currentSpeed) * ease;
+    // Update speed via time-based ramp
+    const t = clamp01((now - rampStart) / rampDuration);
+    currentSpeed = lerp(speedFrom, speedTo, easeOutCubic(t));
 
     x -= currentSpeed * dt;
 
-    const loopW = getLoopWidth();
-    if (loopW > 0) {
-      x = ((x % loopW) + loopW) % loopW;
-      x = x - loopW;
-    }
+    // Seamless loop
+    if (loopW > 0 && x <= -loopW) x += loopW;
 
     track.style.transform = `translate3d(${x}px,0,0)`;
     requestAnimationFrame(raf);
   }
+
   requestAnimationFrame(raf);
 });
 /* =========================================================
