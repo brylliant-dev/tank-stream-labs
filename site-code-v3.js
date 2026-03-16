@@ -705,7 +705,7 @@ document.addEventListener("click", (e) => {
    - Useful when a CMS Collection List may not render on some pages
 ========================================================= */
 $(document).ready(function() {
-  var collectionList = $(".banner-collection_wrapper .w-dyn-list");
+  var collectionList = $(".banner-collection_wrapper.w-dyn-list");
   var sectionToHide = $(".banner-wrapper");
 
   if (collectionList.length === 0) {
