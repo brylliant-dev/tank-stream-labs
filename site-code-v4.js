@@ -450,6 +450,7 @@ $(document).ready(function() {
       grabCursor: true,
       allowTouchMove: true,
       spaceBetween: 20,
+      speed: 900,
       autoplay: {
         delay: 15000,
         disableOnInteraction: false,
