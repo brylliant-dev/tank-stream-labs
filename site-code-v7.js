@@ -482,9 +482,27 @@ $(document).ready(function() {
 (() => {
   let scrollY = 0;
   let isLocked = false;
+  let pageReady = false;
 
   const getLenis = () => window.lenis || null;
 
+  // ── Page load gate ────────────────────────────────────────
+  function disableNavButtons() {
+    document.querySelectorAll(".w-nav-button").forEach((btn) => {
+      btn.style.pointerEvents = "none";
+      btn.setAttribute("aria-disabled", "true");
+    });
+  }
+
+  function enableNavButtons() {
+    document.querySelectorAll(".w-nav-button").forEach((btn) => {
+      btn.style.pointerEvents = "";
+      btn.removeAttribute("aria-disabled");
+    });
+    pageReady = true;
+  }
+
+  // ── Core lock/unlock ──────────────────────────────────────
   function lockScroll() {
     if (isLocked) return;
     isLocked = true;
@@ -515,6 +533,7 @@ $(document).ready(function() {
     if (lenis && typeof lenis.start === "function") lenis.start();
   }
 
+  // ── Webflow nav detection ─────────────────────────────────
   function isNavOpen(navEl) {
     const btn = navEl.querySelector(".w-nav-button");
     const menu = navEl.querySelector(".w-nav-menu");
@@ -523,11 +542,12 @@ $(document).ready(function() {
   }
 
   function sync(navEl) {
+    if (!pageReady) return;
     isNavOpen(navEl) ? lockScroll() : unlockScroll();
   }
 
   function observeOpenState(navEl) {
-    if (navEl._scrollLockInit) return; // prevent double-init
+    if (navEl._scrollLockInit) return;
     navEl._scrollLockInit = true;
 
     const btn = navEl.querySelector(".w-nav-button");
@@ -553,7 +573,7 @@ $(document).ready(function() {
     document.querySelectorAll(".w-nav").forEach(observeOpenState);
   }
 
-  // Manual [data-scroll] toggle
+  // ── Manual [data-scroll] toggle ───────────────────────────
   document.addEventListener("click", (e) => {
     const el = e.target.closest("[data-scroll]");
     if (!el) return;
@@ -562,17 +582,23 @@ $(document).ready(function() {
     if (action === "enable") unlockScroll();
   });
 
-  // ── Init strategy: handles both early and late script execution ──
+  // ── Init ──────────────────────────────────────────────────
   if (document.readyState === "loading") {
-    // DOM not ready yet — wait for it
-    document.addEventListener("DOMContentLoaded", init);
+    document.addEventListener("DOMContentLoaded", () => {
+      disableNavButtons(); // blocks taps if button exists, no-op if it doesn't
+      init();
+    });
   } else {
-    // DOM already ready (common in Webflow) — run immediately
+    disableNavButtons();
     init();
   }
 
-  // Webflow re-renders on page transitions — re-init to be safe
-  window.addEventListener("load", init);
+  // Only after all assets loaded — remove pointer-events block
+  window.addEventListener("load", () => {
+    enableNavButtons(); // restores if button exists, no-op if it doesn't
+    pageReady = true;
+    init();
+  });
 
 })();
 /* =========================================================
