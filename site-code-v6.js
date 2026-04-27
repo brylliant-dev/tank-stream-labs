@@ -471,13 +471,7 @@ $(document).ready(function() {
 ========================================================= */
 
 
-/* =========================================================
-   START: Nav Scroll Lock (Webflow Nav Open = Disable Body Scroll)
-   Purpose:
-   - Disables page scroll when Webflow nav menu is open
-   - Restores scroll position when nav closes
-   - Optionally stops/starts Lenis (if window.lenis exists)
-========================================================= */
+
 /* =========================================================
    Nav Scroll Lock + Manual Scroll Toggle
    - Disables page scroll when Webflow nav menu is open
@@ -491,7 +485,6 @@ $(document).ready(function() {
 
   const getLenis = () => window.lenis || null;
 
-  // ── Core lock/unlock ──────────────────────────────────────
   function lockScroll() {
     if (isLocked) return;
     isLocked = true;
@@ -522,7 +515,6 @@ $(document).ready(function() {
     if (lenis && typeof lenis.start === "function") lenis.start();
   }
 
-  // ── Webflow nav detection ─────────────────────────────────
   function isNavOpen(navEl) {
     const btn = navEl.querySelector(".w-nav-button");
     const menu = navEl.querySelector(".w-nav-menu");
@@ -535,29 +527,33 @@ $(document).ready(function() {
   }
 
   function observeOpenState(navEl) {
+    if (navEl._scrollLockInit) return; // prevent double-init
+    navEl._scrollLockInit = true;
+
     const btn = navEl.querySelector(".w-nav-button");
     const menu = navEl.querySelector(".w-nav-menu");
     if (!btn && !menu) return;
 
-    // MutationObserver is the single source of truth for nav state
     const mo = new MutationObserver(() => sync(navEl));
     if (btn) mo.observe(btn, { attributes: true, attributeFilter: ["class"] });
     if (menu) mo.observe(menu, { attributes: true, attributeFilter: ["class"] });
 
-    // Nav link clicks — give Webflow time to toggle classes
     navEl.addEventListener("click", (e) => {
       if (e.target.closest(".w-nav-menu a")) setTimeout(() => sync(navEl), 50);
     });
 
-    // Escape key close
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") setTimeout(() => sync(navEl), 50);
     });
 
-    sync(navEl); // initial state check
+    sync(navEl);
   }
 
-  // ── Manual [data-scroll] toggle ───────────────────────────
+  function init() {
+    document.querySelectorAll(".w-nav").forEach(observeOpenState);
+  }
+
+  // Manual [data-scroll] toggle
   document.addEventListener("click", (e) => {
     const el = e.target.closest("[data-scroll]");
     if (!el) return;
@@ -566,10 +562,18 @@ $(document).ready(function() {
     if (action === "enable") unlockScroll();
   });
 
-  // ── Init ──────────────────────────────────────────────────
-  document.addEventListener("DOMContentLoaded", () => {
-    document.querySelectorAll(".w-nav").forEach(observeOpenState);
-  });
+  // ── Init strategy: handles both early and late script execution ──
+  if (document.readyState === "loading") {
+    // DOM not ready yet — wait for it
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    // DOM already ready (common in Webflow) — run immediately
+    init();
+  }
+
+  // Webflow re-renders on page transitions — re-init to be safe
+  window.addEventListener("load", init);
+
 })();
 /* =========================================================
    END: Nav Scroll Lock (Webflow Nav Open = Disable Body Scroll)
