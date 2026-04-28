@@ -496,7 +496,8 @@ $(document).ready(function() {
 
   function enableNavButtons() {
     document.querySelectorAll(".w-nav-button").forEach((btn) => {
-      btn.style.pointerEvents = "";
+      btn.style.pointerEvents = "auto";
+      btn.style.opacity = "1";
       btn.removeAttribute("aria-disabled");
     });
     pageReady = true;
