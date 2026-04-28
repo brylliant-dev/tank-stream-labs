@@ -497,6 +497,7 @@ $(document).ready(function() {
   
   function enableNavButtons() {
     document.querySelectorAll(".menu-button").forEach((btn) => {
+      btn.style.transition = "opacity 0.3s ease";
       btn.style.pointerEvents = "auto";
       btn.style.opacity = "1";
       btn.removeAttribute("aria-disabled");
