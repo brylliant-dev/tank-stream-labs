@@ -488,14 +488,15 @@ $(document).ready(function() {
 
   // ── Page load gate ────────────────────────────────────────
   function disableNavButtons() {
-    document.querySelectorAll(".w-nav-button").forEach((btn) => {
+    document.querySelectorAll(".menu-button").forEach((btn) => {
       btn.style.pointerEvents = "none";
+      btn.style.opacity = "0";
       btn.setAttribute("aria-disabled", "true");
     });
   }
-
+  
   function enableNavButtons() {
-    document.querySelectorAll(".w-nav-button").forEach((btn) => {
+    document.querySelectorAll(".menu-button").forEach((btn) => {
       btn.style.pointerEvents = "auto";
       btn.style.opacity = "1";
       btn.removeAttribute("aria-disabled");
@@ -596,9 +597,11 @@ $(document).ready(function() {
 
   // Only after all assets loaded — remove pointer-events block
   window.addEventListener("load", () => {
-    enableNavButtons(); // restores if button exists, no-op if it doesn't
-    pageReady = true;
-    init();
+    setTimeout(() => {
+      enableNavButtons();
+      pageReady = true;
+      init();
+    }, 2000);
   });
 
 })();
