@@ -506,7 +506,7 @@ $(document).ready(function() {
   }
 
   // ── Core lock/unlock ──────────────────────────────────────
-  function lockScroll() {
+  /*function lockScroll() {
     if (isLocked) return;
     isLocked = true;
     scrollY = window.scrollY || window.pageYOffset || 0;
@@ -534,6 +534,21 @@ $(document).ready(function() {
     window.scrollTo(0, scrollY);
     const lenis = getLenis();
     if (lenis && typeof lenis.start === "function") lenis.start();
+  }*/
+  function lockScroll() {
+    if (isLocked) return;
+    isLocked = true;
+    scrollY = window.scrollY || window.pageYOffset || 0;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+  }
+  
+  function unlockScroll() {
+    if (!isLocked) return;
+    isLocked = false;
+    document.documentElement.style.overflow = "";
+    document.body.style.overflow = "";
+    window.scrollTo(0, scrollY);
   }
 
   // ── Webflow nav detection ─────────────────────────────────
