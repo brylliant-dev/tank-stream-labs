@@ -597,9 +597,9 @@ $(document).ready(function() {
 
   // Only after all assets loaded — remove pointer-events block
   window.addEventListener("load", () => {
+    pageReady = true; // ← set this immediately
     setTimeout(() => {
       enableNavButtons();
-      pageReady = true;
       init();
     }, 800);
   });
