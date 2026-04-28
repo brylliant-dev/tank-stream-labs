@@ -604,7 +604,17 @@ $(document).ready(function() {
       init();
     }, 800);
   });
-
+  // Safari BFCache fix — fires when page is restored from cache
+  window.addEventListener("pageshow", (e) => {
+    if (e.persisted) {
+      pageReady = true;
+      unlockScroll(); // release any stuck scroll lock
+      setTimeout(() => {
+        enableNavButtons();
+        init();
+      }, 800);
+    }
+  });
 })();
 /* =========================================================
    END: Nav Scroll Lock (Webflow Nav Open = Disable Body Scroll)
