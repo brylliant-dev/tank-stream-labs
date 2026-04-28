@@ -601,7 +601,7 @@ $(document).ready(function() {
       enableNavButtons();
       pageReady = true;
       init();
-    }, 2000);
+    }, 800);
   });
 
 })();
