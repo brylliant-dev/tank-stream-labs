@@ -538,7 +538,6 @@ $(document).ready(function() {
   function lockScroll() {
     if (isLocked) return;
     isLocked = true;
-    scrollY = window.scrollY || window.pageYOffset || 0;
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
   }
@@ -548,7 +547,6 @@ $(document).ready(function() {
     isLocked = false;
     document.documentElement.style.overflow = "";
     document.body.style.overflow = "";
-    window.scrollTo(0, scrollY);
   }
 
   // ── Webflow nav detection ─────────────────────────────────
