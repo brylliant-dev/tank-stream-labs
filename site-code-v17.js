@@ -219,10 +219,10 @@ document.addEventListener("DOMContentLoaded", () => {
         setActiveTitle(bgSwiper.realIndex);
       });
 
-      // Keep interactive elements clickable
+      /*// Keep interactive elements clickable
       $wrap.on("click", "a, button, [role='button']", function (e) {
         e.stopPropagation();
-      });
+      });*/
 
       // Tap title slide to jump
       $wrap.on("click", ".swiper-slide.is-slider-titles", function (e) {
